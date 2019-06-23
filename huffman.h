@@ -11,9 +11,10 @@ struct huffman_node {
 };
 
 /*
- * 定义最深哈夫曼树的深度，在字符出现频率相差不太大的时候成立，特殊情形暂未考虑
+ * 定义最深哈夫曼树的深度，也就是编码的长度，在字符出现频率相差
+ * 不太大的时候成立，特殊情形暂未考虑
  */
-#define MAX_TREE_DEPTH 20
+#define MAX_TREE_DEPTH 30
 
 //描述每个字符的频率，在哈夫曼树中的位置和编码
 struct char_info {
@@ -23,15 +24,22 @@ struct char_info {
 	char code[MAX_TREE_DEPTH];
 };
 
-//支持编码的字符是26个小写字母，abc...z
-#define CHARACTER_NUM 26
-#define is_char_valid(ch) ((ch) <= 'z' && (ch) >= 'a')
-#define num_to_char(num) (char)((num) + 'a')
-#define char_to_num(ch) ((ch) - 'a')
+/*
+ * 支持编码的字符为0到256的ASCII字符，应该按字节编码
+ * 每个字节按照unsigned char处理
+ */
+#define CHARACTER_NUM 256
+#define is_char_valid(ch) ({unsigned int __ch = ch;\
+			    ch >= 0 && ch <= 255;})
+#define num_to_char(num) ((unsigned char)(num))
+#define char_to_num(ch) ((int)(unsigned char)(ch))
 
 //给定字符串，统计字符串中每个字符的频率信息
 //只统计小写英文字母，其他字符忽略，要求入参合法且 cinfo已经初始化完成
 void count_char(char *str, struct char_info cinfo[]);
+//统计文件中每个字符出现的频率
+void count_char_from_file(char *fname, struct char_info cinfo[]);
+
 //打印每个字符的频率，编码等信息
 void print_info(struct char_info cinfo[]);
 
@@ -46,5 +54,7 @@ void travel_preorder(struct huffman_node *tree, opt_t operation);
 void travel_inorder(struct huffman_node *tree, opt_t operation);
 void travel_postorder(struct huffman_node *tree, opt_t operation);
 void print_node(struct huffman_node *tree);
+//重新编码文件
+void encode_file(char *fname, struct char_info cinfo[]);
 
 #endif

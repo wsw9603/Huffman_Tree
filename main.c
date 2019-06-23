@@ -4,16 +4,19 @@
 
 int fun()
 {
-	char buf[256];
+	char filename[50];
 	struct huffman_node *huffman_tree = NULL;
 	struct char_info cinfo[CHARACTER_NUM] = {0};
 
-	printf("please enter a string, end with enter key\n");
-	fgets(buf, sizeof(buf), stdin);
+	printf("please enter filename\n");
+	scanf("%s", filename);
+//	fgets(filename, sizeof(filename), stdin);
 //	gets(buf);
-	count_char(buf, cinfo);
+	puts(filename);
+	count_char_from_file(filename, cinfo);
 	huffman_tree = create_tree(cinfo);
 	encode_chars(cinfo);
+	encode_file(filename, cinfo);
 	print_info(cinfo);
 
 	puts("\nprint tree:\n");

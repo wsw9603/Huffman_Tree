@@ -3,6 +3,15 @@
 #include <stdlib.h>
 #include "huffman.h"
 
+#define open_and_check(file_dec, fname, mode)	\
+	FILE *file_dec = fopen(fname, mode);	\
+do {						\
+	if (file_dec == NULL) {			\
+		printf("failed to open file \'%s\'\n", fname);\
+		return;				\
+	}					\
+}while (0)
+
 //分配一个根节点，成功返回节点的地址，失败返回NULL
 static struct huffman_node *alloc_root(int weight)
 {
@@ -39,6 +48,23 @@ void count_char(char *str, struct char_info cinfo[])
 			cinfo[char_to_num(*str)].weight++;
 		str++;
 	}
+}
+
+#define buf_size 256
+void count_char_from_file(char *fname, struct char_info cinfo[])
+{
+	unsigned char buf[buf_size] = {0};
+	open_and_check(file, fname, "r");
+
+	while (!feof(file)) {
+		int act_len = fread(buf, sizeof(unsigned char),
+				    buf_size, file);
+		int i;
+		for (i = 0; i < act_len; i++)
+			cinfo[buf[i]].weight++;
+	}
+
+	fclose(file);
 }
 
 void print_node(struct huffman_node *tree)
@@ -176,6 +202,23 @@ void encode_chars(struct char_info cinfo[])
 			*cursor = (temp->parent)->left == temp ? '0' : '1';
 		strcpy(cinfo[i].code, &cursor[1]);
 	}
+}
+
+void encode_file(char *fname, struct char_info cinfo[])
+{
+	char infname[50];
+	strcpy(infname, fname);
+	open_and_check(fin, fname, "r");
+	open_and_check(fout, strcat(infname, ".encode"), "w");
+
+	//暂时以字符为单位进行编码处理
+	while (!feof(fin)) {
+		unsigned char temp = fgetc(fin);
+		fputs(cinfo[char_to_num(temp)].code, fout);
+	}
+
+	fclose(fin);
+	fclose(fout);
 }
 
 void destroy_tree(struct huffman_node *tree)
