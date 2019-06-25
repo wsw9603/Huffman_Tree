@@ -17,10 +17,11 @@ int fun()
 	huffman_tree = create_tree(cinfo);
 	encode_chars(cinfo);
 	encode_file(filename, cinfo);
-	print_info(cinfo);
+//	print_info(cinfo);
+	decode_file(strcat(filename, ".encode"), huffman_tree);
 
-	puts("\nprint tree:\n");
-	travel_preorder(huffman_tree, print_node);
+//	puts("\nprint tree:\n");
+//	travel_preorder(huffman_tree, print_node);
 	destroy_tree(huffman_tree);
 
 	return 0;

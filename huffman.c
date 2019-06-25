@@ -13,10 +13,11 @@ do {						\
 }while (0)
 
 //分配一个根节点，成功返回节点的地址，失败返回NULL
-static struct huffman_node *alloc_root(int weight)
+static struct huffman_node *alloc_root(int weight, unsigned char ch)
 {
 	struct huffman_node *temp = (struct huffman_node *)malloc(sizeof(*temp));
 	if (temp) {
+		temp->character = ch;
 		temp->weight = weight;
 		temp->parent = NULL;
 		temp->left = NULL;
@@ -69,8 +70,9 @@ void count_char_from_file(char *fname, struct char_info cinfo[])
 
 void print_node(struct huffman_node *tree)
 {
-	printf("weight: %d, self: %p, parent: %p, left: %p, right: %p\n",
-		tree->weight, &tree->weight, tree->parent, tree->left, tree->right);
+	printf("weight: %d, self: %p, parent: %p, left: %p, right: %p\n\
+		character: %c",
+		tree->weight, &tree->weight, tree->parent, tree->left, tree->right, tree->character);
 }
 
 //先序遍历
@@ -133,7 +135,8 @@ static int init_all_node(struct huffman_node *trees[], struct char_info cinfo[])
 
 	for (i = 0; i < CHARACTER_NUM; i++) {
 		if (cinfo[i].weight) {
-			trees[length] = alloc_root(cinfo[i].weight);
+			trees[length] = alloc_root(cinfo[i].weight,
+					num_to_char(i));
 			if (!trees[length])
 				return length;
 			cinfo[i].node = trees[length];
@@ -206,15 +209,44 @@ void encode_chars(struct char_info cinfo[])
 
 void encode_file(char *fname, struct char_info cinfo[])
 {
-	char infname[50];
-	strcpy(infname, fname);
+	char outfname[50];
+	strcpy(outfname, fname);
 	open_and_check(fin, fname, "r");
-	open_and_check(fout, strcat(infname, ".encode"), "w");
+	open_and_check(fout, strcat(outfname, ".encode"), "w");
 
 	//暂时以字符为单位进行编码处理
 	while (!feof(fin)) {
 		unsigned char temp = fgetc(fin);
 		fputs(cinfo[char_to_num(temp)].code, fout);
+	}
+
+	fclose(fin);
+	fclose(fout);
+}
+
+void decode_file(char *fname, struct huffman_node *tree)
+{
+	char outfname[50];
+	char *src = fname;
+	char *dst = outfname;
+	while(*src && *src != '.')
+		*dst++ = *src++;
+	*dst = '\0';
+
+	open_and_check(fin, fname, "r");
+	open_and_check(fout, strcat(outfname, ".decode"), "w");
+
+	struct huffman_node *cursor = tree;
+	while (!feof(fin)) {
+		if (!cursor->left) {
+			fputc(cursor->character, fout);
+			cursor = tree;
+		}
+		char temp = fgetc(fin);
+		if (temp == '1')
+			cursor = cursor->right;
+		else
+			cursor = cursor->left;
 	}
 
 	fclose(fin);

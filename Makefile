@@ -8,4 +8,3 @@ clean :
 .PHONY : run
 run :
 	./huffman
-

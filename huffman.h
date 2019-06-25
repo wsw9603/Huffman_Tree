@@ -5,6 +5,7 @@
 //三个全空则既是叶子节点也是根节点
 struct huffman_node {
 	int weight;
+	unsigned char character;
 	struct huffman_node *parent;
 	struct huffman_node *left;
 	struct huffman_node *right;
@@ -18,8 +19,8 @@ struct huffman_node {
 
 //描述每个字符的频率，在哈夫曼树中的位置和编码
 struct char_info {
-	char character;
 	int weight;
+	unsigned char character;
 	struct huffman_node *node;
 	char code[MAX_TREE_DEPTH];
 };
@@ -56,5 +57,6 @@ void travel_postorder(struct huffman_node *tree, opt_t operation);
 void print_node(struct huffman_node *tree);
 //重新编码文件
 void encode_file(char *fname, struct char_info cinfo[]);
+void decode_file(char *fname, struct huffman_node *tree);
 
 #endif
