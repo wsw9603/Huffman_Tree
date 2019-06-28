@@ -1,14 +1,16 @@
 #ifndef __HUFFMAN_H
 #define __HUFFMAN_H
 
-//叶子节点左右子树为空，根节点parent为空
-//三个全空则既是叶子节点也是根节点
+/*
+ * 将整棵树存放在一个树节点的数组里，n个叶子节点的二叉树一共有2n-1个
+ * 节点，据此可以在程序开始时就一次性申请好内存，而且方便将整棵树存放
+ * 到文件中，再次读取时仍然有意义。
+ */
 struct huffman_node {
 	int weight;
 	unsigned char character;
-	struct huffman_node *parent;
-	struct huffman_node *left;
-	struct huffman_node *right;
+	int left;
+	int right;
 };
 
 /*
@@ -21,7 +23,6 @@ struct huffman_node {
 struct char_info {
 	int weight;
 	unsigned char character;
-	struct huffman_node *node;
 	char code[MAX_TREE_DEPTH];
 };
 
@@ -35,26 +36,25 @@ struct char_info {
 #define num_to_char(num) ((unsigned char)(num))
 #define char_to_num(ch) ((int)(unsigned char)(ch))
 
-//给定字符串，统计字符串中每个字符的频率信息
-//只统计小写英文字母，其他字符忽略，要求入参合法且 cinfo已经初始化完成
-void count_char(char *str, struct char_info cinfo[]);
 //统计文件中每个字符出现的频率
 void count_char_from_file(char *fname, struct char_info cinfo[]);
 
 //打印每个字符的频率，编码等信息
 void print_info(struct char_info cinfo[]);
+void print_tree(struct huffman_node *tree, int length);
 
-//创建一棵Huffman树，成功返回根节点，失败返回NULL
-struct huffman_node *create_tree(struct char_info cinfo[]);
-void encode_chars(struct char_info cinfo[]);
+//创建一棵Huffman树，成功返回树的所以叶子节点数目，
+//并动态分配所有节点的存储空间，失败返回0
+int create_tree(struct char_info cinfo[], struct huffman_node *tree[]);
+void encode_chars(struct char_info cinfo[], struct huffman_node tree[]);
 void destroy_tree(struct huffman_node *tree);
 
 typedef void (*opt_t)(struct huffman_node *);
 //遍历
-void travel_preorder(struct huffman_node *tree, opt_t operation);
-void travel_inorder(struct huffman_node *tree, opt_t operation);
-void travel_postorder(struct huffman_node *tree, opt_t operation);
-void print_node(struct huffman_node *tree);
+//void travel_preorder(struct huffman_node *tree, opt_t operation);
+//void travel_inorder(struct huffman_node *tree, opt_t operation);
+//void travel_postorder(struct huffman_node *tree, opt_t operation);
+//void print_node(struct huffman_node *tree);
 //重新编码文件
 void encode_file(char *fname, struct char_info cinfo[]);
 void decode_file(char *fname, struct huffman_node *tree);

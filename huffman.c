@@ -12,45 +12,6 @@ do {						\
 	}					\
 }while (0)
 
-//分配一个根节点，成功返回节点的地址，失败返回NULL
-static struct huffman_node *alloc_root(int weight, unsigned char ch)
-{
-	struct huffman_node *temp = (struct huffman_node *)malloc(sizeof(*temp));
-	if (temp) {
-		temp->character = ch;
-		temp->weight = weight;
-		temp->parent = NULL;
-		temp->left = NULL;
-		temp->right = NULL;
-	}
-	return temp;
-}
-
-//将两棵子树归并成一棵树，成功返回新树的地址，失败返回NULL
-static struct huffman_node *combine_tree(struct huffman_node *tree1,
-			struct huffman_node *tree2)
-{
-	struct huffman_node *temp = (struct huffman_node *)malloc(sizeof(*temp));
-	if (temp) {
-		temp->weight = tree1->weight + tree2->weight;
-		temp->left = tree1;
-		temp->right = tree2;
-		temp->parent = NULL;
-		tree1->parent = temp;
-		tree2->parent = temp;
-	}
-	return temp;
-}
-
-void count_char(char *str, struct char_info cinfo[])
-{
-	while(*str) {
-		if (is_char_valid(*str))
-			cinfo[char_to_num(*str)].weight++;
-		str++;
-	}
-}
-
 #define buf_size 256
 void count_char_from_file(char *fname, struct char_info cinfo[])
 {
@@ -67,7 +28,7 @@ void count_char_from_file(char *fname, struct char_info cinfo[])
 
 	fclose(file);
 }
-
+/*
 void print_node(struct huffman_node *tree)
 {
 	printf("weight: %d, self: %p, parent: %p, left: %p, right: %p\n\
@@ -104,7 +65,7 @@ void travel_postorder(struct huffman_node *tree, opt_t operation)
 	travel_postorder(tree->right, operation);
 	operation(tree);
 }
-
+*/
 //打印每个字符的频率，编码等信息
 void print_info(struct char_info cinfo[])
 {
@@ -118,93 +79,127 @@ void print_info(struct char_info cinfo[])
 	}
 }
 
-static void print_trees(struct huffman_node *trees[], int length)
+void print_tree(struct huffman_node *tree, int length)
 {
 	int i;
-	printf("weight of %d trees: ", length);
+	printf("tree info:\n");
 	for (i = 0; i < length; i++) {
-		printf("%-4d", trees[i]->weight);
+		printf("no: %-4d, character: %c, weight: %-4d, left: %-4d, right: %-4d\n",
+			i+1, tree[i].character, tree[i].weight,
+			tree[i].left, tree[i].right);
 	}
 	putchar('\n');
 }
 
-//为所有频率非零的字符分配节点，返回分配的非零字符数目
-static int init_all_node(struct huffman_node *trees[], struct char_info cinfo[])
+//返回权值非零的字符数目
+static int count_valid(struct char_info cinfo[])
 {
-	int i, length = 0;
-
-	for (i = 0; i < CHARACTER_NUM; i++) {
-		if (cinfo[i].weight) {
-			trees[length] = alloc_root(cinfo[i].weight,
-					num_to_char(i));
-			if (!trees[length])
-				return length;
-			cinfo[i].node = trees[length];
-			length++;
-		}
-	}
-
-	return length;
+	int i, count = 0;
+	for (i = 0; i < CHARACTER_NUM; i++)
+		if (cinfo[i].weight > 0)
+			count++;
+	return count;
 }
 
-//为所有树节点排序，根据节点权值降序排列
-static void sort_trees(struct huffman_node *trees[], int length)
+//初始化所有叶子节点
+static void init_all_nodes(struct char_info cinfo[],
+			  struct huffman_node nodes[],
+			  int length)
 {
-	int i, j, temp;
-	struct huffman_node *swap;
-	for (i = 0; i < length; i++) {
-		for (temp = i, j = i+1; j < length; j++)
-			if (trees[temp]->weight < trees[j]->weight)
-				temp = j;
-		if (temp != i) {
-			swap = trees[i];
-			trees[i] = trees[temp];
-			trees[temp] = swap;
-		}
-	}
-}
-
-struct huffman_node *create_tree(struct char_info cinfo[])
-{
-	int i;
-	struct huffman_node *temp = NULL;
-	struct huffman_node *trees[CHARACTER_NUM] = {0};
-	int length = init_all_node(trees, cinfo);
-	sort_trees(trees, length);
-
-	while (length > 1) {
-		temp = combine_tree(trees[length-1], trees[length-2]);
-		if (!temp) {
-			//错误处理，删除节点
-			return NULL;
-		}
-
-		for (i = length - 2; i > 0 &&
-				trees[i-1]->weight < temp->weight; i--) {
-			trees[i] = trees[i-1];
-		}
-		trees[i] = temp;
-		length--;
-	}
-
-	return trees[0];
-}
-
-void encode_chars(struct char_info cinfo[])
-{
-	int i;
-	char code[MAX_TREE_DEPTH] = {0};
-	char *cursor = NULL;
-	struct huffman_node *temp = NULL;
-
-	for (i = 0; i < CHARACTER_NUM; i++) {
+	int i, j;
+	for (i = 0, j = 0; i < CHARACTER_NUM; i++) {
 		if (cinfo[i].weight == 0)
 			continue;
-		for (temp = cinfo[i].node, cursor = &code[MAX_TREE_DEPTH-2];
-				temp->parent; temp = temp->parent, cursor--)
-			*cursor = (temp->parent)->left == temp ? '0' : '1';
-		strcpy(cinfo[i].code, &cursor[1]);
+		nodes[j].weight = cinfo[i].weight;
+		nodes[j].character = i;
+		nodes[j].left = -1;
+		nodes[j].right = -1;
+		j++;
 	}
+}
+
+//按照权值降序排列
+static void sort(struct huffman_node nodes[], int length)
+{
+	int i, j, temp;
+	for (i = 0; i < length-1; i++) {
+		temp = i;
+		for (j = i + 1; j < length; j++)
+			if (nodes[j].weight > nodes[temp].weight)
+				temp = j;
+
+		if (temp != i) {
+			struct huffman_node swap;
+			swap = nodes[temp];
+			nodes[temp] = nodes[i];
+			nodes[i] = swap;
+		}
+	}
+}
+
+/*
+ * 入参为Huffman树的叶子节点数目和叶子节点所在的数组，并且叶子节点已经
+ * 按照权值降序排列存放在数组的后半部分。
+ * 函数将根据入参生成一棵完整的Huffman树，树的根节点即为数组首元素。
+ */
+static void combine_nodes(struct huffman_node tree[], int leaves)
+{
+	int low = leaves - 1;
+	int high = 2 * leaves - 2;
+	while (low > 0) {
+		int j;
+		int temp = tree[high].weight + tree[high-1].weight;
+		for (j = low; tree[j].weight > temp; j++)
+			tree[j-1] = tree[j];
+		tree[j-1].weight = temp;
+		tree[j-1].left = high - 1;
+		tree[j-1].right = high;
+		tree[j-1].character = '%';	//标志非叶子节点
+		low--;
+		high -= 2;
+	}
+}
+
+int create_tree(struct char_info cinfo[], struct huffman_node *tree[])
+{
+	const int leaves = count_valid(cinfo);
+
+	struct huffman_node *base = (struct huffman_node *)malloc(
+				    sizeof(*base) * (2*leaves - 1));
+	if (!base) {
+		printf("alloc huffman node table failed\n");
+		return 0;
+	}
+
+	init_all_nodes(cinfo, &base[leaves-1], leaves);
+	sort(&base[leaves-1], leaves);
+	combine_nodes(base, leaves);
+
+	*tree = base;
+	return 2 * leaves - 1;
+}
+
+void encode_chars_recursive(struct char_info cinfo[],
+			    struct huffman_node tree[],
+			    int cursor, char base[], int n)
+{
+	struct huffman_node *node = &tree[cursor];
+	if (node->left == -1) {
+		strncpy(cinfo[node->character].code, base, n);
+		cinfo[node->character].code[n] = '\0';
+		return;
+	}
+	base[n] = '0';
+	encode_chars_recursive(cinfo, tree, node->left, base, n+1);
+	base[n] = '1';
+	encode_chars_recursive(cinfo, tree, node->right, base, n+1);
+}
+
+void encode_chars(struct char_info cinfo[], struct huffman_node tree[])
+{
+	char code[MAX_TREE_DEPTH] = {0};
+
+	encode_chars_recursive(cinfo, tree, 0, code, 0);
 }
 
 void encode_file(char *fname, struct char_info cinfo[])
@@ -236,17 +231,17 @@ void decode_file(char *fname, struct huffman_node *tree)
 	open_and_check(fin, fname, "r");
 	open_and_check(fout, strcat(outfname, ".decode"), "w");
 
-	struct huffman_node *cursor = tree;
+	int cursor = 0;
 	while (!feof(fin)) {
-		if (!cursor->left) {
-			fputc(cursor->character, fout);
-			cursor = tree;
+		if (tree[cursor].left == -1) {
+			fputc(tree[cursor].character, fout);
+			cursor = 0;
 		}
 		char temp = fgetc(fin);
 		if (temp == '1')
-			cursor = cursor->right;
+			cursor = tree[cursor].right;
 		else
-			cursor = cursor->left;
+			cursor = tree[cursor].left;
 	}
 
 	fclose(fin);
@@ -255,5 +250,5 @@ void decode_file(char *fname, struct huffman_node *tree)
 
 void destroy_tree(struct huffman_node *tree)
 {
-	travel_postorder(tree, (opt_t)free);
+	free(tree);
 }
