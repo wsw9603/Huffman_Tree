@@ -3,12 +3,12 @@
 #include <stdlib.h>
 #include "huffman.h"
 
-#define open_and_check(file_dec, fname, mode)	\
+#define open_and_check(file_dec, fname, mode, tag)	\
 	FILE *file_dec = fopen(fname, mode);	\
 do {						\
 	if (file_dec == NULL) {			\
 		printf("failed to open file \'%s\'\n", fname);\
-		return;				\
+		goto tag;			\
 	}					\
 }while (0)
 
@@ -16,7 +16,7 @@ do {						\
 void count_char_from_file(char *fname, struct char_info cinfo[])
 {
 	unsigned char buf[buf_size] = {0};
-	open_and_check(file, fname, "r");
+	open_and_check(file, fname, "r", end);
 
 	while (!feof(file)) {
 		int act_len = fread(buf, sizeof(unsigned char),
@@ -27,45 +27,10 @@ void count_char_from_file(char *fname, struct char_info cinfo[])
 	}
 
 	fclose(file);
-}
-/*
-void print_node(struct huffman_node *tree)
-{
-	printf("weight: %d, self: %p, parent: %p, left: %p, right: %p\n\
-		character: %c",
-		tree->weight, &tree->weight, tree->parent, tree->left, tree->right, tree->character);
+end:
+	return;
 }
 
-//先序遍历
-void travel_preorder(struct huffman_node *tree, opt_t operation)
-{
-	if (!tree)
-		return;
-	operation(tree);
-	travel_preorder(tree->left, operation);
-	travel_preorder(tree->right, operation);
-}
-
-//中序遍历
-void travel_inorder(struct huffman_node *tree, opt_t operation)
-{
-	if (!tree)
-		return;
-	travel_inorder(tree->left, operation);
-	operation(tree);
-	travel_inorder(tree->right, operation);
-}
-
-//后序遍历
-void travel_postorder(struct huffman_node *tree, opt_t operation)
-{
-	if (!tree)
-		return;
-	travel_postorder(tree->left, operation);
-	travel_postorder(tree->right, operation);
-	operation(tree);
-}
-*/
 //打印每个字符的频率，编码等信息
 void print_info(struct char_info cinfo[])
 {
@@ -207,8 +172,10 @@ void encode_file(char *fname, struct char_info cinfo[],
 {
 	char outfname[50];
 	strcpy(outfname, fname);
-	open_and_check(fin, fname, "r");
-	open_and_check(fout, strcat(outfname, ".encode"), "w");
+	strcat(outfname, ".encode");
+
+	open_and_check(fin, fname, "r", err_open_fin);
+	open_and_check(fout, outfname, "w", err_open_fout);
 
 	//将整棵树写进文件头
 	fwrite(&length, sizeof(length), 1, fout);
@@ -220,8 +187,11 @@ void encode_file(char *fname, struct char_info cinfo[],
 		fputs(cinfo[char_to_num(temp)].code, fout);
 	}
 
-	fclose(fin);
 	fclose(fout);
+err_open_fout:
+	fclose(fin);
+err_open_fin:
+	return;
 }
 
 void decode_file(char *fname)
@@ -236,7 +206,7 @@ void decode_file(char *fname)
 	strcat(outfname, ".decode");
 
 	//打开要解码的文件，读出头部字节
-	open_and_check(fin, fname, "r");
+	open_and_check(fin, fname, "r", err_open_fin);
 	int length;
 	fread(&length, sizeof(length), 1, fin);
 	if (length <= 0) {
@@ -252,8 +222,7 @@ void decode_file(char *fname)
 	}
 	fread(tree, sizeof(struct huffman_node), length, fin);
 
-	//TODO:这一步失败，不能释放前面的资源，有问题
-	open_and_check(fout, outfname, "w");
+	open_and_check(fout, outfname, "w", errout);
 
 	int cursor = 0;
 	while (!feof(fin)) {
@@ -271,6 +240,8 @@ void decode_file(char *fname)
 	fclose(fout);
 errout:
 	fclose(fin);
+err_open_fin:
+	return;
 }
 
 void destroy_tree(struct huffman_node *tree)

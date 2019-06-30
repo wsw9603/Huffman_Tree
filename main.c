@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include "huffman.h"
 
@@ -38,7 +37,6 @@ void encode()
 	struct char_info cinfo[CHARACTER_NUM] = {0};
 
 	printf("please enter file name\n");
-	while(getchar() != '\n');
 	fgets(fname, sizeof(fname), stdin);
 	if (!check_and_format(fname)) {
 		printf("invalid filename\n");
@@ -54,7 +52,7 @@ void encode()
 	encode_chars(cinfo, huffman_tree);
 	encode_file(fname, cinfo, huffman_tree, length);
 
-	free(huffman_tree);
+	destroy_tree(huffman_tree);
 }
 
 void decode()
@@ -62,7 +60,6 @@ void decode()
 	char fname[MAX_FILE_NAME_LEN] = {0};
 
 	printf("please enter file name\n");
-	while(getchar() != '\n');
 	fgets(fname, sizeof(fname), stdin);
 	if (!check_and_format(fname)) {
 		printf("invalid filename\n");
@@ -76,14 +73,15 @@ void fun_with_menu()
 {
 	while (1) {
 		print_menu();
-		int menu;
+		char menu;
 
-		scanf("%d", &menu);
+		menu = getchar();
+		while(getchar() != '\n');
 		switch (menu) {
-			case 0: return;
-			case 1: encode();
+			case '0': return;
+			case '1': encode();
 				break;
-			case 2: decode();
+			case '2': decode();
 				break;
 			default:
 				printf("unsupported menu, try again\n");

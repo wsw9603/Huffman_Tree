@@ -49,12 +49,6 @@ int create_tree(struct char_info cinfo[], struct huffman_node *tree[]);
 void encode_chars(struct char_info cinfo[], struct huffman_node tree[]);
 void destroy_tree(struct huffman_node *tree);
 
-typedef void (*opt_t)(struct huffman_node *);
-//遍历
-//void travel_preorder(struct huffman_node *tree, opt_t operation);
-//void travel_inorder(struct huffman_node *tree, opt_t operation);
-//void travel_postorder(struct huffman_node *tree, opt_t operation);
-//void print_node(struct huffman_node *tree);
 //重新编码文件
 void encode_file(char *fname, struct char_info cinfo[],
 		 struct huffman_node tree[], int length);
