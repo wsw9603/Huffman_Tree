@@ -202,12 +202,17 @@ void encode_chars(struct char_info cinfo[], struct huffman_node tree[])
 	encode_chars_recursive(cinfo, tree, 0, code, 0);
 }
 
-void encode_file(char *fname, struct char_info cinfo[])
+void encode_file(char *fname, struct char_info cinfo[],
+		 struct huffman_node tree[], int length)
 {
 	char outfname[50];
 	strcpy(outfname, fname);
 	open_and_check(fin, fname, "r");
 	open_and_check(fout, strcat(outfname, ".encode"), "w");
+
+	//将整棵树写进文件头
+	fwrite(&length, sizeof(length), 1, fout);
+	fwrite(tree, sizeof(struct huffman_node), length, fout);
 
 	//暂时以字符为单位进行编码处理
 	while (!feof(fin)) {

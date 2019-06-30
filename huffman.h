@@ -56,7 +56,8 @@ typedef void (*opt_t)(struct huffman_node *);
 //void travel_postorder(struct huffman_node *tree, opt_t operation);
 //void print_node(struct huffman_node *tree);
 //重新编码文件
-void encode_file(char *fname, struct char_info cinfo[]);
+void encode_file(char *fname, struct char_info cinfo[],
+		 struct huffman_node tree[], int length);
 void decode_file(char *fname, struct huffman_node *tree);
 
 #endif
