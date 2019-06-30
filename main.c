@@ -39,7 +39,6 @@ void encode()
 
 	printf("please enter file name\n");
 	while(getchar() != '\n');
-
 	fgets(fname, sizeof(fname), stdin);
 	if (!check_and_format(fname)) {
 		printf("invalid filename\n");
@@ -60,7 +59,17 @@ void encode()
 
 void decode()
 {
+	char fname[MAX_FILE_NAME_LEN] = {0};
 
+	printf("please enter file name\n");
+	while(getchar() != '\n');
+	fgets(fname, sizeof(fname), stdin);
+	if (!check_and_format(fname)) {
+		printf("invalid filename\n");
+		return;
+	}
+
+	decode_file(fname);
 }
 
 void fun_with_menu()

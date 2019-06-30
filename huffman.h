@@ -58,6 +58,6 @@ typedef void (*opt_t)(struct huffman_node *);
 //重新编码文件
 void encode_file(char *fname, struct char_info cinfo[],
 		 struct huffman_node tree[], int length);
-void decode_file(char *fname, struct huffman_node *tree);
+void decode_file(char *fname);
 
 #endif

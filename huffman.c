@@ -224,7 +224,7 @@ void encode_file(char *fname, struct char_info cinfo[],
 	fclose(fout);
 }
 
-void decode_file(char *fname, struct huffman_node *tree)
+void decode_file(char *fname)
 {
 	char outfname[50];
 	char *src = fname;
@@ -232,9 +232,28 @@ void decode_file(char *fname, struct huffman_node *tree)
 	while(*src && *src != '.')
 		*dst++ = *src++;
 	*dst = '\0';
+	//TODO:对文件名进行更合理的处理
+	strcat(outfname, ".decode");
 
+	//打开要解码的文件，读出头部字节
 	open_and_check(fin, fname, "r");
-	open_and_check(fout, strcat(outfname, ".decode"), "w");
+	int length;
+	fread(&length, sizeof(length), 1, fin);
+	if (length <= 0) {
+		printf("invalid header length\n");
+		goto errout;
+	}
+
+	struct huffman_node *tree = (struct huffman_node *)malloc(
+				    sizeof(*tree) * length);
+	if (!tree) {
+		printf("alloc space for huffman tree failed\n");
+		goto errout;
+	}
+	fread(tree, sizeof(struct huffman_node), length, fin);
+
+	//TODO:这一步失败，不能释放前面的资源，有问题
+	open_and_check(fout, outfname, "w");
 
 	int cursor = 0;
 	while (!feof(fin)) {
@@ -249,8 +268,9 @@ void decode_file(char *fname, struct huffman_node *tree)
 			cursor = tree[cursor].left;
 	}
 
-	fclose(fin);
 	fclose(fout);
+errout:
+	fclose(fin);
 }
 
 void destroy_tree(struct huffman_node *tree)
