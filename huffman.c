@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "huffman.h"
+#include "bitbuf.h"
 
 #define open_and_check(file_dec, fname, mode, tag)	\
 	FILE *file_dec = fopen(fname, mode);	\
@@ -167,6 +168,24 @@ void encode_chars(struct char_info cinfo[], struct huffman_node tree[])
 	encode_chars_recursive(cinfo, tree, 0, code, 0);
 }
 
+//以下为文件第一个32位的定义
+//头部的长度，有多少个参与编码的字符，或者叶子节点数目
+#define HEAD_LENGTH	8
+//最后一个buf的有效位数(0~63)，有效位数为零表示没有最后一个buf
+#define LAST_BUF_LENGTH	6
+//文件buf数目，×8即为解码文件的大小，所以编码后文件不要超过4M
+#define BUF_NUM		18
+
+#define mkhead(head_length, last_buf_length, buf_num)	\
+	((unsigned int)(head_length) |			\
+	 (unsigned int)(last_buf_length) << (HEAD_LENGTH) |\
+	 (unsigned int)(buf_num) << (HEAD_LENGTH + LAST_BUF_LENGTH))
+#define head_length(val) ((unsigned int)(val) & ((1U << HEAD_LENGTH) - 1U))
+#define last_buf_length(val) (((unsigned int)(val) >> HEAD_LENGTH) & \
+			      ((1U << LAST_BUF_LENGTH) - 1U))
+#define buf_num(val) (((unsigned int)(val) >> (HEAD_LENGTH + LAST_BUF_LENGTH))\
+		      & ((1U << BUF_NUM) - 1U))
+
 void encode_file(char *fname, struct char_info cinfo[],
 		 struct huffman_node tree[], int length)
 {
@@ -181,11 +200,38 @@ void encode_file(char *fname, struct char_info cinfo[],
 	fwrite(&length, sizeof(length), 1, fout);
 	fwrite(tree, sizeof(struct huffman_node), length, fout);
 
+	struct bitbuf buf = {0};
+	unsigned long val = 0;
+
+	int num_of_buf = 0;
+
 	//暂时以字符为单位进行编码处理
 	while (!feof(fin)) {
 		unsigned char temp = fgetc(fin);
-		fputs(cinfo[char_to_num(temp)].code, fout);
+		char *pchar = NULL;
+		for(pchar = cinfo[temp].code; *pchar; pchar++) {
+			buf_putchar(*pchar, &buf);
+			if (is_buf_filled(&buf)) {
+				val = buf_get_value(&buf);
+				buf_clean(&buf);
+				fwrite(&val, sizeof(val), 1, fout);
+				num_of_buf++;
+			}
+		}
 	}
+
+	if(!is_buf_empty(&buf)) {
+		val = buf_get_value(&buf);
+		fwrite(&val, sizeof(val), 1, fout);
+		num_of_buf++;
+	}
+	if(is_buf_filled(&buf))
+		num_of_buf++;
+
+	unsigned int head = mkhead((length + 1) / 2, buf_get_length(&buf),
+				   num_of_buf);
+	fseek(fout, 0, SEEK_SET);
+	fwrite(&head, sizeof(head), 1,fout);
 
 	fclose(fout);
 err_open_fout:
@@ -207,8 +253,12 @@ void decode_file(char *fname)
 
 	//打开要解码的文件，读出头部字节
 	open_and_check(fin, fname, "r", err_open_fin);
-	int length;
-	fread(&length, sizeof(length), 1, fin);
+	unsigned int head;
+	fread(&head, sizeof(head), 1, fin);
+	unsigned int length = head_length(head) * 2 - 1;
+	unsigned int num_of_buf = buf_num(head);
+	unsigned int last_buf_length = last_buf_length(head);
+
 	if (length <= 0) {
 		printf("invalid header length\n");
 		goto errout;
@@ -224,17 +274,45 @@ void decode_file(char *fname)
 
 	open_and_check(fout, outfname, "w", errout);
 
-	int cursor = 0;
-	while (!feof(fin)) {
+	struct bitbuf buf = {0};
+	unsigned long val;
+	fread(&val, sizeof(val), 1, fin);
+	buf_set_value(val, &buf);
+
+	int cursor = 0, i = 1;
+	while (!feof(fin) && i < num_of_buf) {
+		while (!is_buf_empty(&buf)) {
+			if (tree[cursor].left == -1) {
+				fputc(tree[cursor].character, fout);
+				cursor = 0;
+			}
+			char temp = buf_getchar(&buf);
+			if (temp == '1')
+				cursor = tree[cursor].right;
+			else
+				cursor = tree[cursor].left;
+		}
+		fread(&val, sizeof(val), 1, fin);
+		i++;
+		buf_set_value(val, &buf);
+	}
+
+	buf_set_length(last_buf_length, &buf);
+	while (!is_buf_empty(&buf)) {
 		if (tree[cursor].left == -1) {
 			fputc(tree[cursor].character, fout);
 			cursor = 0;
 		}
-		char temp = fgetc(fin);
+		char temp = buf_getchar(&buf);
 		if (temp == '1')
 			cursor = tree[cursor].right;
 		else
 			cursor = tree[cursor].left;
+	}
+
+	if (tree[cursor].left == -1) {
+		fputc(tree[cursor].character, fout);
+		cursor = 0;
 	}
 
 	fclose(fout);

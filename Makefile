@@ -1,4 +1,4 @@
-huffman : main.c huffman.c huffman.h
+huffman : main.c huffman.c huffman.h bitbuf.h
 	cc -o $@ $^
 
 .PHONY : clean
